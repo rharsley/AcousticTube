@@ -7,6 +7,10 @@ This repository contains code to simulate wave propagation in acoustic tubes, ba
 * radiation losses using low order RLC network approximation to Levine and Schwinger unflanged open tube
 
 ## Impulse response
+The [ImpulseResponse](ImpulseResponse) directory contains files to generate an impulse response. Example usage is shown in [ExampleUsage.m](ExampleUsage.m)
+
+## Testing
+The [Testing](Testing) directory contains code to compare agains the FDTD simulations.
 
 ## Development
 The source code has been developed in Octave on MacOS, but should work on in Matlab and on other operating systems (although this has not been tested).
