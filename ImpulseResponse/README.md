@@ -1,3 +1,5 @@
+# Readme
+
 This directory contains files to generate an impulse response using FDTD algorithm.
 
 [MagFilter_0p01.m](MagFilter_0p01.m)
