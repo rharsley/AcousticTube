@@ -5,9 +5,9 @@ addpath("ImpulseResponse")
 duration = 1;
 %Sample rate
 FS = 1e5;
-%Cylinder, 1m, 0.01 cm radius bore
+%Cylinder, 1m, 0.005 m radius bore
 %Define bore profile
-cylinder.x = [1, 2000];
+cylinder.x = [0, 1000];
 cylinder.S = pi*0.005^2*[1,1];
 cylinder.temp = 19.85;
 
