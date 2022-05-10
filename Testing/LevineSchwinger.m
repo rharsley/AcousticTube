@@ -1,62 +1,63 @@
-clear all; close all;
+function [ka,ZLS,Zrlc,RLS,Rrlc,l]=LSRadImp(rho,c,a,Nka,fmax)
+%gets radiation impedance from Levine and Schwinger model (ZLS) and lumped
+%element model (ZRLC) as a function of wavenumber ka=2pi*f*a/c. Inputs are
+%air density rho, speed of sound c and tube radius a and number of
+%frequency points Nka. fmax is sets a frequency (Hz) limit on to reduce
+%compute time for high resolution. May be adjusted if makes ka>3.82
 
 %LS Model
-% kmax=2*pi*fmax*a/c;
-[rho,c]=thermconstants(26.85);
-kmax=3.82;Nka=100;a=0.01;
+kmax=2*pi*fmax*a/c;
 % if kmax>3.82
 %     kmax=3.82;
 % end
 % ka=[0:Nka-1]*kmax/Nka;
-ka=linspace(0.001,kmax,Nka);
+ka=linspace(0,kmax,Nka);
 magR=zeros(1,Nka);
 l=zeros(1,Nka);
-x0=1e-15;
-fun1=@(x,k) atan2(besselj(1,x),(-bessely(1,x)))./(x.*sqrt(k.^2-x.^2));
-fun2=@(x,k) log(pi*besselj(1,x).*sqrt((besselj(1,x).^2+bessely(1,x).^2)))./(x.*sqrt(k.^2-x.^2));
-fun3=@(x,k) log(1./(2*besseli(1,x,1).*besselk(1,x,1)))./(x.*sqrt(x.^2+k.^2));
 
+deltax=0.25*(ka(2)-ka(1));
+
+xinf=[0.00000001:0.001:1];
+for nn=0:20%powers of 10
+    xinf=[xinf,[1:0.001:9]*10^nn];
+end
+numinf=log(0.5./(besseli(1,xinf,1).*besselk(1,xinf,1)));%besseli and besselk normalised but normalisation constant cancels in this case
+numinf(1)=0;
+LSprog=Nka/10;LSprog0=LSprog;
 for nn=1:Nka
-    f1int=integral(@(x)fun1(x,ka(nn)),x0,ka(nn));
-    f2int=integral(@(x)fun2(x,ka(nn)),x0,ka(nn));
-    f3int=integral(@(x)fun3(x,ka(nn)),x0,inf);
+    x=[deltax:deltax:ka(nn)-deltax];
+%     num=unwrap(2*atan(-besselj(1,x)./bessely(1,x)))/2;
+    num=atan2(besselj(1,x),-bessely(1,x));
+    den=(x.*sqrt(ka(nn)^2-x.^2));
+    f=num./den;
+    if(nn != 1)
+         magR(nn)=exp(-(2*ka(nn)/pi)*trapz(x,f));
+     else
+         magR(1) = 1;
+     endif
+     
     
-    magR(nn)=exp(-2*ka(nn)*f1int/pi);
-    l(nn)=(1/pi)*(f2int+f3int);
+    num=log(pi*besselj(1,x).*sqrt(besselj(1,x).^2+bessely(1,x).^2));
+    den=x.*sqrt(ka(nn)^2-x.^2);
+    f=num./den;
+    
+    deninf=xinf.*sqrt(xinf.^2+ka(nn)^2);
+    finf=numinf./deninf;
+    if(nn != 1)
+        l(nn)=(1/pi)*(trapz(x,f)+trapz(xinf,finf));
+    else
+        l(1) = 0.6133;
+    endif
+    
+    if nn>LSprog
+        {LSprog/Nka}
+        LSprog=LSprog+LSprog0;
+    end
 end
 RLS=-magR.*exp(-2i*ka.*l);
 ZLS=rho*c*(1+RLS)./(1-RLS);
-error('a');
-
-Ns=50;Nk=100;
-fmax=kmax*c/a;
-sigmamax=0.5*fmax;
-sigma=linspace(-sigmamax,sigmamax,Ns);
-
-om=linspace(-2*fmax,fmax,Nk);
-
-magR2=zeros(Ns,Nk);
-l2=zeros(Ns,Nk);
-s=zeros(Ns,Nk);
-
-fun1=@(x,k) atan(besselj(1,x)./(-bessely(1,x)))./(x.*sqrt(k.^2-x.^2));
-
-for mm=1:Ns
-    for nn=1:Nk
-        s(mm,nn)=sigma(mm)+1j*om(nn);
-        ka=(a/c)*-1j*(sigma(mm)+1j*om(nn));
-        wp=[0+1j*imag(ka),real(ka)+1j*imag(ka),real(ka)];
-        f1int=integral(@(x)fun1(x,ka),x0,ka);
-        f2int=integral(@(x)fun2(x,ka),x0,ka,'RelTol',1e-12,'AbsTol',1e-3);
-        f3int=integral(@(x)fun3(x,ka),x0,inf);
-
-        magR2(mm,nn)=exp(-2*ka*f1int/pi);
-        l2(mm,nn)=(1/pi)*(f2int+f3int);
-     
-    end
-end
-RLS2=-magR2.*exp(-2i*ka.*l2);
-ZLS2=rho*c*(1+RLS2)./(1-RLS2);
-
-surf(om,sigma,abs(s.*ZLS2),'Edgecolor','none')
-shading interp
+%RLC Model
+[R1,R2,C,L]=RLCconstants(rho,c,a);
+omega=1i*ka*c/a;
+Zrlc=(L*(R1+R2)*omega+L*R1*R2*C*(omega).^2)./(R1+R2+(L+R1*R2*C)*omega+L*R2*C*(omega).^2);
+Rrlc=(rho*c-Zrlc)./(rho*c+Zrlc);
